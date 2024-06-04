@@ -1,29 +1,12 @@
-# resource "google_compute_health_check" "autohealing" {
-#   name                = "autohealing-health-check"
-#   check_interval_sec  = 5
-#   timeout_sec         = 
-#   healthy_threshold   = 2
-#   unhealthy_threshold = 10
 
-#   http_health_check {
-#     request_path = "/_health_check"
-#     port         = "443"
-#   }
-# }
-
-
-
-resource "google_compute_instance_template" "default" {
-  name        = "tfe-server-template"
+resource "google_compute_instance_template" "tfe" {
+  name        = "${var.tag_prefix}-server-template"
   description = "This template is used to create a TFE server instances."
 
-  tags = ["foo", "bar"]
+  tags = ["${var.tag_prefix}"]
 
-  # labels = {
-  #   environment = "dev"
-  # }
 
-  instance_description = "description assigned to instances"
+  instance_description = "${var.tag_prefix}-instance"
   machine_type         = "n2-standard-8"
   can_ip_forward       = false
 
@@ -72,37 +55,38 @@ resource "google_compute_instance_template" "default" {
   }
 }
 
-resource "google_compute_instance_group_manager" "appserver" {
+# autoscaler settings
+resource "google_compute_region_autoscaler" "tfe" {
+  name   = "${var.tag_prefix}-autoscaler"
+  region = var.gcp_region
+  target = google_compute_region_instance_group_manager.tfe.id
+
+  autoscaling_policy {
+    max_replicas    = 2
+    min_replicas    = 2
+    cooldown_period = 300
+
+    cpu_utilization {
+      target = 0.8
+    }
+  }
+}
+
+
+resource "google_compute_region_instance_group_manager" "tfe" {
   name = "tfe-instance-group"
 
   base_instance_name = "tfe-instances"
-  zone               = "${var.gcp_region}-a"
+  region               = var.gcp_region
 
   version {
-    instance_template  = google_compute_instance_template.default.self_link_unique
+    instance_template  = google_compute_instance_template.tfe.self_link_unique
   }
-
-  # all_instances_config {
-  #   metadata = {
-  #     metadata_key = "metadata_value"
-  #   }
-  #   labels = {
-  #     label_key = "label_value"
-  #   }
-  # }
-
-  # target_pools = [google_compute_target_pool.appserver.id]
-  target_size  = 1
 
   named_port {
     name = "https"
     port = 443
   }
 
-  # auto_healing_policies {
-  #   health_check      = google_compute_health_check.autohealing.id
-  #   initial_delay_sec = 300
-  # }
-
-  depends_on = [ google_compute_subnetwork.tfe_subnet ]
+  depends_on = [ google_compute_subnetwork.tfe_subnet_public1 ]
 }

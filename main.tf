@@ -1,31 +1,31 @@
+# default network creation
 resource "google_compute_network" "tfe_vpc" {
   name                    = "${var.tag_prefix}-vpc"
   auto_create_subnetworks = false
 }
 
-
-resource "google_compute_subnetwork" "tfe_subnet" {
+# public subnet
+resource "google_compute_subnetwork" "tfe_subnet_public1" {
   name          = "${var.tag_prefix}-public1"
   ip_cidr_range = cidrsubnet(var.vnet_cidr, 8, 1)
   network       = google_compute_network.tfe_vpc.self_link
 }
 
+# subnet to put the instances without a public IP
+resource "google_compute_subnetwork" "tfe_subnet_private1" {
+  name          = "${var.tag_prefix}-private1"
+  ip_cidr_range = cidrsubnet(var.vnet_cidr, 8, 11)
+  network       = google_compute_network.tfe_vpc.self_link
+}
+
+# routing for the NAT
 resource "google_compute_router" "tfe_router" {
   name    = "${var.tag_prefix}-router"
-  region  = google_compute_subnetwork.tfe_subnet.region
+  region  = google_compute_subnetwork.tfe_subnet_private1.region
   network = google_compute_network.tfe_vpc.self_link
 }
 
-# resource "google_compute_router" "router" {
-#   name    = "my-router"
-#   region  = google_compute_subnetwork.tfe_subnet.region
-#   network = google_compute_network.tfe_vpc.id
-
-#   bgp {
-#     asn = 64514
-#   }
-# }
-
+# NAT gateway
 resource "google_compute_router_nat" "nat" {
   name                               = "my-router-nat"
   router                             = google_compute_router.tfe_router.name
@@ -39,9 +39,9 @@ resource "google_compute_router_nat" "nat" {
   }
 }
 
-
-resource "google_compute_instance" "tfe" {
-  name         = var.tag_prefix
+# client server
+resource "google_compute_instance" "tfe-client" {
+  name         = "${var.tag_prefix}-client"
   machine_type = "e2-medium"
   zone         = "${var.gcp_region}-a"
 
@@ -62,7 +62,7 @@ resource "google_compute_instance" "tfe" {
 
     access_config {
       // Ephemeral public IP
-      nat_ip = google_compute_address.tfe-public-ipc.address
+      nat_ip = google_compute_address.tfe-client-public.address
     }
   }
 
@@ -70,7 +70,7 @@ resource "google_compute_instance" "tfe" {
     "ssh-keys" = "ubuntu:${var.public_key}"
   }
 
-  depends_on = [google_compute_subnetwork.tfe_subnet]
+  depends_on = [google_compute_subnetwork.tfe_subnet_public1]
 
   lifecycle {
     ignore_changes = [attached_disk]
@@ -87,49 +87,15 @@ resource "google_compute_instance" "tfe" {
   allow_stopping_for_update = true
 }
 
-resource "google_compute_address" "tfe-public-ipc" {
-  name         = "${var.tag_prefix}-public-ip"
+# public ip address for the client server
+resource "google_compute_address" "tfe-client-public" {
+  name         = "${var.tag_prefix}-client-public-ip"
   address_type = "EXTERNAL"
 }
 
-# resource "google_compute_disk" "compute_disk_swap" {
-#   name = "${var.tag_prefix}-swap-disk"
-#   type = "pd-ssd"
-#   size = "10"
-#   zone = "${var.gcp_region}-a"
-# }
-
-# resource "google_compute_disk" "compute_disk_docker" {
-#   name = "${var.tag_prefix}-docker-disk"
-#   type = "pd-ssd"
-#   size = "20"
-#   zone = "${var.gcp_region}-a"
-# }
-
-# resource "google_compute_disk" "compute_disk_tfe_data" {
-#   name = "${var.tag_prefix}-tfe-data-disk"
-#   type = "pd-ssd"
-#   size = "40"
-#   zone = "${var.gcp_region}-a"
-# }
-
-# resource "google_compute_attached_disk" "swap" {
-#   disk     = google_compute_disk.compute_disk_swap.id
-#   instance = google_compute_instance.tfe.id
-# }
-
-# resource "google_compute_attached_disk" "docker" {
-#   disk     = google_compute_disk.compute_disk_docker.id
-#   instance = google_compute_instance.tfe.id
-# }
-
-# resource "google_compute_attached_disk" "tfe_data" {
-#   disk     = google_compute_disk.compute_disk_tfe_data.id
-#   instance = google_compute_instance.tfe.id
-# }
-
+# default router on the network to work
 resource "google_compute_firewall" "default" {
-  name    = "test-firewall"
+  name    = "${var.tag_prefix}-firewall"
   network = google_compute_network.tfe_vpc.name
 
   allow {
@@ -140,6 +106,7 @@ resource "google_compute_firewall" "default" {
   source_ranges = ["0.0.0.0/0"]
 }
 
+# bucket to storage TFE files on
 resource "google_storage_bucket" "tfe-bucket" {
   name          = "${var.tag_prefix}-bucket"
   location      = var.gcp_location
@@ -149,6 +116,7 @@ resource "google_storage_bucket" "tfe-bucket" {
   uniform_bucket_level_access = true
 }
 
+# private network range where the Redis and PostgreSQL services will be stored
 resource "google_compute_global_address" "private_ip_address" {
   # provider = google-beta
 
@@ -159,6 +127,7 @@ resource "google_compute_global_address" "private_ip_address" {
   network       = google_compute_network.tfe_vpc.id
 }
 
+# to make sure the redis and postgresql can get certain information
 resource "google_service_networking_connection" "private_vpc_connection" {
   # provider = google-beta
 
@@ -170,26 +139,8 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 }
 
 
-resource "google_sql_database_instance" "instance" {
-  provider = google-beta
 
-  name             = "${var.tag_prefix}-database"
-  region           = var.gcp_region
-  database_version = "POSTGRES_15"
-
-  depends_on = [google_service_networking_connection.private_vpc_connection]
-
-  settings {
-    tier = "db-g1-small" ## possible issue in size
-    ip_configuration {
-      ipv4_enabled                                  = false
-      private_network                               = google_compute_network.tfe_vpc.id
-      enable_private_path_for_google_cloud_services = true
-    }
-  }
-  deletion_protection = false
-}
-
+# to make sure instances can connect to the bucket without authentication
 resource "google_project_iam_binding" "example_storage_admin_binding" {
   project = var.gcp_project
   role    = "roles/storage.admin"
@@ -220,6 +171,27 @@ resource "google_storage_bucket_iam_member" "member-bucket" {
   bucket = google_storage_bucket.tfe-bucket.name
   role   = "roles/storage.legacyBucketReader"
   member = "serviceAccount:${google_service_account.service_account.email}"
+}
+
+# Postgresql environment
+resource "google_sql_database_instance" "instance" {
+  provider = google-beta
+
+  name             = "${var.tag_prefix}-database"
+  region           = var.gcp_region
+  database_version = "POSTGRES_15"
+
+  depends_on = [google_service_networking_connection.private_vpc_connection]
+
+  settings {
+    tier = "db-g1-small" ## possible issue in size
+    ip_configuration {
+      ipv4_enabled                                  = false
+      private_network                               = google_compute_network.tfe_vpc.id
+      enable_private_path_for_google_cloud_services = true
+    }
+  }
+  deletion_protection = false
 }
 
 resource "google_sql_database" "tfe-db" {

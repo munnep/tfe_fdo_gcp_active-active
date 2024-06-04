@@ -21,7 +21,7 @@ resource "google_compute_region_backend_service" "tfe" {
   health_checks         = [google_compute_region_health_check.tfe.id]
 
   backend {
-    group          = google_compute_instance_group_manager.appserver.instance_group
+    group          = google_compute_region_instance_group_manager.tfe.instance_group
     balancing_mode = "CONNECTION"
   }
 
@@ -35,7 +35,7 @@ resource "google_compute_forwarding_rule" "tfe" {
   name                  = "test"
   description           = "test"
   region                = var.gcp_region
-  depends_on            = [google_compute_subnetwork.tfe_subnet]
+  depends_on            = [google_compute_subnetwork.tfe_subnet_private1]
   ip_protocol           = "TCP"
   load_balancing_scheme = "EXTERNAL"
   ports                 = ["443"]

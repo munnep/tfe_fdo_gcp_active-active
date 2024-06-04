@@ -34,11 +34,19 @@ data "aws_route53_zone" "selected" {
   private_zone = false
 }
 
-resource "aws_route53_record" "www" {
+resource "aws_route53_record" "www-tfe" {
   zone_id = data.aws_route53_zone.selected.zone_id
   name    = var.dns_hostname
   type    = "A"
   ttl     = "300"
   # records = [google_compute_address.tfe-public-ipc.address]
   records = [ google_compute_forwarding_rule.tfe.ip_address ]
+}
+
+resource "aws_route53_record" "www-tfe-client" {
+  zone_id = data.aws_route53_zone.selected.zone_id
+  name    = "${var.dns_hostname}-client"
+  type    = "A"
+  ttl     = "300"
+  records = [google_compute_address.tfe-client-public.address]
 }
