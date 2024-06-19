@@ -13,26 +13,22 @@ output "tfe_appplication" {
 }
 
 
-# data "google_compute_instance" "tfe" {
-#   name = "tfe-instances"
-#   zone = "${var.gcp_region}-a"
+
+
+# data "google_compute_region_instance_group" "group" {
+#   name = "tfe-instance-group"
+# }
+
+# locals {
+#   tfe_instances = data.google_compute_region_instance_group.group.instances[*].instance
+# }
+
+# data "google_compute_instance" "appserver" {
+#   for_each = toset(local.tfe_instances)
+#   self_link  = each.value
 # }
 
 
-data "google_compute_region_instance_group" "group" {
-  name = "tfe-instance-group"
-}
-
-locals {
-  tfe_instances = data.google_compute_region_instance_group.group.instances[*].instance
-}
-
-data "google_compute_instance" "appserver" {
-  for_each = toset(local.tfe_instances)
-  self_link  = each.value
-}
-
-
-output "ssh_tfe_server" {
-  value = [for key, value in data.google_compute_instance.appserver : "ssh -J ubuntu@${var.dns_hostname}-client.${var.dns_zonename} ubuntu@${value.network_interface[0].network_ip}"]
-}
+# output "ssh_tfe_server" {
+#   value = [for key, value in data.google_compute_instance.appserver : "ssh -J ubuntu@${var.dns_hostname}-client.${var.dns_zonename} ubuntu@${value.network_interface[0].network_ip}"]
+# }

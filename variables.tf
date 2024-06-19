@@ -50,6 +50,14 @@ variable "gcp_location" {
   description = "location where the bucket is stored"
 }
 
+variable "min_replicas" {
+  description = "minimum of replicas for the TFE instances"
+}
+
+variable "max_replicas" {
+  description = "maximum of replicas for the TFE instances"
+}
+
 variable "certificate_email" {
   description = "email address to register the certificate"
 }

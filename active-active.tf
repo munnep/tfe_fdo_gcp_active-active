@@ -1,6 +1,6 @@
 
 resource "google_compute_instance_template" "tfe" {
-  name        = "${var.tag_prefix}-server-template"
+  name_prefix        = "${var.tag_prefix}"
   description = "This template is used to create a TFE server instances."
 
   tags = ["${var.tag_prefix}"]
@@ -24,7 +24,7 @@ resource "google_compute_instance_template" "tfe" {
 
   network_interface {
     network    = "${var.tag_prefix}-vpc"
-    subnetwork = "${var.tag_prefix}-public1"
+    subnetwork = "${var.tag_prefix}-private1"
   }
 
   metadata = {
@@ -45,6 +45,7 @@ resource "google_compute_instance_template" "tfe" {
       tfe_bucket        = "${var.tag_prefix}-bucket"
       region            = var.gcp_region
       gcp_project       = var.gcp_project
+      redis_host        = google_redis_instance.cache.host
     })
   }
 
@@ -62,8 +63,8 @@ resource "google_compute_region_autoscaler" "tfe" {
   target = google_compute_region_instance_group_manager.tfe.id
 
   autoscaling_policy {
-    max_replicas    = 2
-    min_replicas    = 2
+    max_replicas    = var.max_replicas
+    min_replicas    = var.min_replicas
     cooldown_period = 300
 
     cpu_utilization {
@@ -89,4 +90,8 @@ resource "google_compute_region_instance_group_manager" "tfe" {
   }
 
   depends_on = [ google_compute_subnetwork.tfe_subnet_public1 ]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
