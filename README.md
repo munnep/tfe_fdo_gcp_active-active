@@ -1,4 +1,4 @@
-# Terraform Enterprise FDO - External on Google Cloud Platform
+# Terraform Enterprise FDO - Active-Active on Google Cloud Platform
 
 This is a repository to have a TFE FDO active-active environment on GCP. This is using a PostgreSQL, Redis and bucket from GCP. 
 
