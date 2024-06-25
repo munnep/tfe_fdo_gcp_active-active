@@ -11,7 +11,7 @@ write_files:
           environment:
             TFE_LICENSE: ${tfe_license}
             TFE_HOSTNAME: "${dns_hostname}.${dns_zonename}"
-            TFE_OPERATIONAL_MODE: "external"    
+            TFE_OPERATIONAL_MODE: "active-active"    
             TFE_ENCRYPTION_PASSWORD: "${tfe_password}"
             TFE_DISK_CACHE_VOLUME_NAME: $${COMPOSE_PROJECT_NAME}_terraform-enterprise-cache
             TFE_TLS_CERT_FILE: /etc/ssl/private/terraform-enterprise/cert.pem
@@ -28,6 +28,11 @@ write_files:
             TFE_OBJECT_STORAGE_GOOGLE_PROJECT: ${gcp_project}
             TFE_OBJECT_STORAGE_GOOGLE_BUCKET: ${tfe_bucket}
             TFE_OBJECT_STORAGE_GOOGLE_CREDENTIALS: ""
+            # redis
+            TFE_REDIS_HOST: ${redis_host}
+            TFE_REDIS_USE_AUTH: false
+            # /vault 
+            TFE_VAULT_CLUSTER_ADDRESS: "https://PRIVATE_IP_ADDRESS_WILL_BE_PLACED_HERE:8201"
           cap_add:
             - IPC_LOCK
           read_only: true
@@ -38,6 +43,7 @@ write_files:
           ports:
             - "80:80"
             - "443:443"
+            - "8201:8201"
           volumes:
             - type: bind
               source: /var/run/docker.sock
@@ -222,6 +228,11 @@ write_files:
     permissions: '0750'
     content: |
       #!/usr/bin/env bash    
+
+
+      # add the private IP address of the server to the yaml file
+      LOCAL_IP=`curl -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/ip"`
+      sed -i "s/PRIVATE_IP_ADDRESS_WILL_BE_PLACED_HERE/$LOCAL_IP/g" /var/tmp/compose.yaml
 
       # copy the configuration file to right location
       cp /var/tmp/compose.yaml /opt/tfe/
