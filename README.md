@@ -1,10 +1,10 @@
 # Terraform Enterprise FDO - External on Google Cloud Platform
 
-This is a repository to have a TFE FDO external environment on GCP. This is using a PostgreSQL and bucket from GCP. 
+This is a repository to have a TFE FDO active-active environment on GCP. This is using a PostgreSQL, Redis and bucket from GCP. 
 
 # Diagram
 
-![](diagram/diagram_tfe_fdo_gcp_external.png)  
+![](diagram/diagram_tfe_fdo_gcp_active-active.png)  
 
 # Prerequisites
 
@@ -42,11 +42,11 @@ The repo assumes you have no certificates and want to create them using Let's En
 
 - Clone the repository to your local machine
 ```sh
-git clone https://github.com/munnep/tfe_fdo_gcp_external.git
+git clone https://github.com/munnep/tfe_fdo_gcp_active-active.git
 ```
 - Go to the directory  
 ```sh
-cd tfe_fdo_gcp_external
+cd tfe_fdo_gcp_active-active
 ```
 - Add your gcp authentication key as `key.json`
 - create a file called `variables.auto.tfvars` with the following contents and your own values
@@ -68,6 +68,8 @@ gcp_region        = "europe-west4"                # GCP region creating the reso
 vnet_cidr         = "10.214.0.0/16"               # Network to be used
 gcp_project       = "hc-ff9323d13b0e4e0da8171"    # GCP project id (found in keys.json)
 gcp_location      = "EU"                          # location to create SQL and bucket 
+min_replicas      = 2                             # minimum number of instances 
+max_replicas      = 2                             # maximum number of instances
 ```
 - Terraform initialize
 ```
@@ -81,15 +83,15 @@ terraform plan
 ```
 terraform apply
 ```
-- Terraform output should create 27 resources and show you the public dns string you can use to connect to the TFE instance
+- Terraform output should create 31 resources and show you the public dns string you can use to connect to the TFE instance
 ```
-Apply complete! Resources: 27 to added, 0 to changed, 0 to destroyed.
+Apply complete! Resources: 31 to added, 0 to changed, 0 to destroyed.
 
 Outputs:
 
-ssh_tfe_server = "ssh ubuntu@tfe25.aws.munnep.com"
-tfe_appplication = "https://tfe25.aws.munnep.com"
-tfe_instance_public_ip = "34.32.208.215"
+ssh_tfe_server = "ssh -J ubuntu@tfe91-client.aws.munnep.com ubuntu@<instance_private_ip_address>"
+tfe_appplication = "https://tfe91.aws.munnep.com"
+tfe_client = "ssh ubuntu@tfe91-client.aws.munnep.com"
 ```
 - You can now login to the application with the username `admin` and password specified in your variables.
 
@@ -108,4 +110,6 @@ tfe_instance_public_ip = "34.32.208.215"
 - [x] point dns name to public ip address
 - [x] create a bucket
 - [x] create PostgreSQL instance
+- [x] create a redis instance
+- [x] create autoscaling launch template
 - [x] install TFE
