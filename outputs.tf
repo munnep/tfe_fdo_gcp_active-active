@@ -12,7 +12,9 @@ output "tfe_appplication" {
   value = "https://${var.dns_hostname}.${var.dns_zonename}"
 }
 
-
+output "ssh_tfe_server" {
+  value = "ssh -J ubuntu@${var.dns_hostname}-client.${var.dns_zonename} ubuntu@<instance_private_ip_address>"
+}
 
 
 # data "google_compute_region_instance_group" "group" {
