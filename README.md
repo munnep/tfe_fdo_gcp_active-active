@@ -2,6 +2,12 @@
 
 This is a repository to have a TFE FDO active-active environment on GCP. This is using a PostgreSQL, Redis and bucket from GCP. 
 
+
+The choice of operating system will also determine if you are using `docker` or `podman`
+
+- `tfe_os = "ubuntu"`: installs and runs Terraform Enterprise using **Docker** 
+- `tfe_os = "redhat"`: installs and runs Terraform Enterprise using **Podman** 
+
 # Diagram
 
 ![](diagram/diagram_tfe_fdo_gcp_active-active.png)  
@@ -12,23 +18,72 @@ This is a repository to have a TFE FDO active-active environment on GCP. This is
 Make sure you have a TFE license available for use
 
 ## GCP
-
 Have your GCP credentials configured
 
+```
+gcloud config set account 845080953236-compute@developer.gserviceaccount.com
+gcloud auth activate-service-account --key-file=key.json
+gcloud config set project <your project>
+gcloud auth application-default login
+```
+
 #### API enabled for
-- Service Networking API
+- Compute Engine API
+- Cloud Resource Manager API
+- Google DNS API
+- IAM Service Account Credentials API
+- Identity and Access Management (IAM) API
+- Service Usage API
+- Google Cloud APIs
+- Service Management API
+- Google Cloud Storage JSON API
+- Cloud Storage API
 - Cloud SQL admin API
 - Google Cloud Memorystore for Redis API
+- Service Networking API
+ 
+```
+gcloud services enable serviceusage.googleapis.com      # this might give an error to be enabled from the console first with a link. 
+
+gcloud services enable compute.googleapis.com
+gcloud services enable cloudresourcemanager.googleapis.com
+gcloud services enable dns.googleapis.com
+gcloud services enable iamcredentials.googleapis.com
+gcloud services enable iam.googleapis.com
+gcloud services enable cloudapis.googleapis.com
+gcloud services enable servicemanagement.googleapis.com
+gcloud services enable storage-api.googleapis.com
+gcloud services enable storage.googleapis.com
+gcloud services enable servicenetworking.googleapis.com
+gcloud services enable sqladmin.googleapis.com
+gcloud services enable redis.googleapis.com
+gcloud services enable container.googleapis.com
+```
+
 
 #### Following roles assigned to your account
+
+Option 1:
+- have the owner assigned to the account
+
+Option 2:
 - Compute Network Admin
 - Compute Storage Admin
 - Editor
 - Project IAM Admin
+- kubernetes engine admin
+- Compute Instance Admin (v1)
+- Compute Security Admin
+- Compute Viewer
+- DNS Administrator
+- Quota Viewer
+- Security Admin
+- Service Account Admin
+- Service Account Key Admin
+- Service Account User
+- Storage Admin
 
-## AWS
 
-This repository uses AWS resources for the DNS resources and creating the DNS records
 
 ## Install terraform  
 See the following documentation [How to install Terraform](https://learn.hashicorp.com/tutorials/terraform/install-cli)
@@ -52,17 +107,15 @@ cd tfe_fdo_gcp_active-active
 - create a file called `variables.auto.tfvars` with the following contents and your own values
 ```
 # General
-tag_prefix        = "tfe22"                       # TAG prefix for names to easily find your AWS resources
-dns_hostname      = "tfe22"                       # DNS hostname for the TFE
-dns_zonename      = "aws.munnep.com"              # DNS zone name to be used
-tfe_release       = "v202312-1"                   # Version number for the release to install. This must have a value
+tag_prefix        = "tfe91"                       # TAG prefix for names to easily find your AWS resources
+dns_hostname      = "tfe91"                       # DNS hostname for the TFE
+dns_zonename      = "hashicorpdemo.com"           # DNS zone name to be used
+tfe_release       = "1.1.3"                       # Version number for the release to install. This must have a value
 tfe_password      = "Password#1"                  # TFE password for the dashboard and encryption of the data
 public_key        = "ssh-rsa AAAAB3NzaN"          # The public key for you to connect to the server over SSH
 certificate_email = "patrick.munne@hashicorp.com" # Your email address used by TLS certificate 
 tfe_license       = "02MV4UU43BK5HGYYTOJZ"        # license file being used
 rds_password      = "Password#1"                  # password used for PostgreSQL
-# AWS
-aws_region        = "eu-north-1"                  # AWS region creating the DNS records
 # gcp
 gcp_region        = "europe-west4"                # GCP region creating the resources
 vnet_cidr         = "10.214.0.0/16"               # Network to be used
@@ -70,6 +123,7 @@ gcp_project       = "hc-ff9323d13b0e4e0da8171"    # GCP project id (found in key
 gcp_location      = "EU"                          # location to create SQL and bucket 
 min_replicas      = 2                             # minimum number of instances 
 max_replicas      = 2                             # maximum number of instances
+tfe_os            = "redhat"                      # ubuntu  or redhat
 ```
 - Terraform initialize
 ```
@@ -89,9 +143,9 @@ Apply complete! Resources: 31 to added, 0 to changed, 0 to destroyed.
 
 Outputs:
 
-ssh_tfe_server = "ssh -J ubuntu@tfe91-client.aws.munnep.com ubuntu@<instance_private_ip_address>"
-tfe_appplication = "https://tfe91.aws.munnep.com"
-tfe_client = "ssh ubuntu@tfe91-client.aws.munnep.com"
+ssh_tfe_server = "ssh -J ubuntu@tfe91-client.hc-0ecd51335ae74f1089a9a431017.gcp.sbx.hashicorpdemo.com ubuntu@<instance_private_ip_address>"
+tfe_appplication = "https://tfe91.hc-0ecd51335ae74f1089a9a431017.gcp.sbx.hashicorpdemo.com"
+tfe_client = "ssh ubuntu@tfe91-client.hc-0ecd51335ae74f1089a9a431017.gcp.sbx.hashicorpdemo.com"
 ```
 - You can now login to the application with the username `admin` and password specified in your variables.
 
@@ -113,3 +167,4 @@ tfe_client = "ssh ubuntu@tfe91-client.aws.munnep.com"
 - [x] create a redis instance
 - [x] create autoscaling launch template
 - [x] install TFE
+- [x] RedHat with podman available as an option

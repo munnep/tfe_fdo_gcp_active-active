@@ -9,6 +9,7 @@ resource "google_compute_region_health_check" "tfe" {
   https_health_check {
     port         = 443
     request_path = "/_health_check"
+    host         = "${var.dns_hostname}.${var.dns_zonename}"
   }
 }
 
@@ -17,8 +18,13 @@ resource "google_compute_region_backend_service" "tfe" {
   region                = var.gcp_region
   protocol              = "TCP"
   load_balancing_scheme = "EXTERNAL"
-  timeout_sec           = 30
-  health_checks         = [google_compute_region_health_check.tfe.id]
+  # Helps keep a browser/client pinned to a single backend instance.
+  # For TCP LBs, CLIENT_IP is the most applicable affinity mode.
+  session_affinity = "CLIENT_IP_PROTO"
+  # TFE UI/API uses long-lived connections (incl websockets/streaming logs);
+  # a short backend timeout can manifest as dropped sessions.
+  timeout_sec   = 3600
+  health_checks = [google_compute_region_health_check.tfe.id]
 
   backend {
     group          = google_compute_region_instance_group_manager.tfe.instance_group

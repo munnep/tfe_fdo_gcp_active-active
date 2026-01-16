@@ -34,8 +34,9 @@ variable "tfe_license" {
   description = "the TFE license as a string"
 }
 
-variable "aws_region" {
-  description = "region to create the environment"
+variable "tfe_os" {
+  description = "OS to use for TFE server: ubuntu or redhat"
+
 }
 
 variable "gcp_region" {

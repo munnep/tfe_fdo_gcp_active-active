@@ -182,8 +182,6 @@ write_files:
       	mount -a
       fi
 
-      # install Docker version 23.0.5
-
       for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove $pkg; done
       
       sudo apt-get update -y
@@ -205,8 +203,8 @@ write_files:
       # apt-cache madison docker-ce | awk '{ print $3 }'
 
       # Set the Docker version to install
-      VERSION_STRING=5:23.0.6-1~ubuntu.22.04~jammy
-      apt-get install docker-ce=$VERSION_STRING docker-ce-cli=$VERSION_STRING containerd.io docker-buildx-plugin docker-compose-plugin -y       
+      VERSION_STRING=5:26.1.4-1~ubuntu.24.04~noble
+      apt-get install docker-ce=$VERSION_STRING docker-ce-cli=$VERSION_STRING containerd.io docker-buildx-plugin docker-compose-plugin -y               
   - path: /var/tmp/download_and_unpack_software.sh 
     permissions: '0750'
     content: |
